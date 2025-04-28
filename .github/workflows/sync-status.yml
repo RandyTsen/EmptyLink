@@ -2,7 +2,7 @@ name: Sync Container Status
 
 on:
   schedule:
-    # Every 10 minutes
+    # runs every 10 minutes
     - cron: '*/10 * * * *'
 
 jobs:
@@ -11,4 +11,4 @@ jobs:
     steps:
       - name: Trigger sync-status endpoint
         run: |
-          curl -X GET https://v0-new-project-pcdmrbxhbaa.vercel.app/
+          curl -X GET https://v0-new-project-pcdmrbxhbaa.vercel.app/api/sync-status
