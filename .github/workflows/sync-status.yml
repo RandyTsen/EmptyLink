@@ -1,6 +1,7 @@
 name: Sync Container Status
 
 on:
+  workflow_dispatch:   # ← allows you to click “Run workflow” in the UI
   schedule:
     # runs every 10 minutes
     - cron: '*/10 * * * *'
