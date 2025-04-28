@@ -1,0 +1,14 @@
+name: Sync Container Status
+
+on:
+  schedule:
+    # Every 10 minutes
+    - cron: '*/10 * * * *'
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger sync-status endpoint
+        run: |
+          curl -X GET https://v0-new-project-pcdmrbxhbaa.vercel.app/
