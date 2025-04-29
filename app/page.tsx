@@ -1,12 +1,13 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import Link from "next/link"
 import ShipmentCard from "@/components/ShipmentCard"
 import { getShipmentsWithTracking } from "@/services/dbService"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { RefreshCw, Search, Filter } from "lucide-react"
+import { RefreshCw, Search, Filter, Plus, ChevronLeft, ChevronRight } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 
@@ -22,6 +23,7 @@ export default function Home() {
   const [statusFilter, setStatusFilter] = useState("all")
   const [lastRefreshed, setLastRefreshed] = useState(new Date())
   const [isRefreshing, setIsRefreshing] = useState(false)
+  const [scrollPosition, setScrollPosition] = useState(0)
 
   const fetchData = async () => {
     try {
@@ -79,20 +81,38 @@ export default function Home() {
     return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
   }
 
+  const handleScroll = (direction) => {
+    const container = document.getElementById("shipments-container")
+    if (container) {
+      const scrollAmount = direction === "left" ? -600 : 600
+      container.scrollBy({ left: scrollAmount, behavior: "smooth" })
+      setScrollPosition(container.scrollLeft + scrollAmount)
+    }
+  }
+
+  const handleScrollCheck = () => {
+    const container = document.getElementById("shipments-container")
+    if (container) {
+      setScrollPosition(container.scrollLeft)
+    }
+  }
+
   const renderShipmentSkeletons = () => {
     return Array(3)
       .fill(0)
       .map((_, index) => (
-        <div key={index} className="bg-white rounded-lg shadow-md overflow-hidden">
-          <div className="bg-slate-800 p-4">
-            <Skeleton className="h-6 w-48 bg-slate-700" />
-            <Skeleton className="h-4 w-32 mt-2 bg-slate-700" />
-          </div>
-          <div className="p-4">
-            <Skeleton className="h-4 w-full mb-2" />
-            <Skeleton className="h-4 w-full mb-2" />
-            <Skeleton className="h-4 w-full mb-2" />
-            <Skeleton className="h-4 w-3/4" />
+        <div key={index} className="min-w-[350px] w-[350px] flex-shrink-0">
+          <div className="bg-white rounded-lg shadow-md overflow-hidden h-full">
+            <div className="bg-slate-800 p-4">
+              <Skeleton className="h-6 w-48 bg-slate-700" />
+              <Skeleton className="h-4 w-32 mt-2 bg-slate-700" />
+            </div>
+            <div className="p-4">
+              <Skeleton className="h-4 w-full mb-2" />
+              <Skeleton className="h-4 w-full mb-2" />
+              <Skeleton className="h-4 w-full mb-2" />
+              <Skeleton className="h-4 w-3/4" />
+            </div>
           </div>
         </div>
       ))
@@ -102,7 +122,7 @@ export default function Home() {
     return (
       <div className="container mx-auto p-4">
         <h1 className="text-2xl font-bold mb-6">Container Tracker</h1>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">{renderShipmentSkeletons()}</div>
+        <div className="flex gap-4 overflow-x-auto pb-4">{renderShipmentSkeletons()}</div>
       </div>
     )
   }
@@ -163,6 +183,12 @@ export default function Home() {
                 </SelectContent>
               </Select>
             </div>
+            <Link href="/shipping-orders/new">
+              <Button className="flex items-center gap-1">
+                <Plus className="h-4 w-4" />
+                New Shipping Order
+              </Button>
+            </Link>
           </div>
 
           {filteredShipments.length === 0 ? (
@@ -183,14 +209,66 @@ export default function Home() {
                   </Button>
                 </>
               ) : (
-                <p className="text-lg font-medium">No shipments found.</p>
+                <>
+                  <p className="text-lg font-medium">No shipments found.</p>
+                  <Link href="/shipping-orders/new" className="mt-4 inline-block">
+                    <Button>
+                      <Plus className="mr-2 h-4 w-4" />
+                      Create Your First Shipping Order
+                    </Button>
+                  </Link>
+                </>
               )}
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredShipments.map((shipment) => (
-                <ShipmentCard key={shipment.id} shipment={shipment} />
-              ))}
+            <div className="relative">
+              <div className="absolute top-1/2 left-0 transform -translate-y-1/2 -translate-x-4 z-10">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="rounded-full bg-white shadow-md"
+                  onClick={() => handleScroll("left")}
+                  disabled={scrollPosition <= 0}
+                >
+                  <ChevronLeft className="h-5 w-5" />
+                </Button>
+              </div>
+
+              <div
+                id="shipments-container"
+                className="flex gap-4 overflow-x-auto pb-4 scroll-smooth"
+                style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
+                onScroll={handleScrollCheck}
+              >
+                {filteredShipments.map((shipment) => (
+                  <div key={shipment.id} className="min-w-[350px] w-[350px] flex-shrink-0">
+                    <ShipmentCard shipment={shipment} />
+                  </div>
+                ))}
+              </div>
+
+              <div className="absolute top-1/2 right-0 transform -translate-y-1/2 translate-x-4 z-10">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="rounded-full bg-white shadow-md"
+                  onClick={() => handleScroll("right")}
+                  disabled={
+                    scrollPosition >=
+                    filteredShipments.length * 350 +
+                      (filteredShipments.length - 1) * 16 -
+                      document.getElementById("shipments-container")?.clientWidth
+                  }
+                >
+                  <ChevronRight className="h-5 w-5" />
+                </Button>
+              </div>
+
+              <style jsx global>{`
+                #shipments-container::-webkit-scrollbar {
+                  display: none;
+                }
+              `}</style>
             </div>
           )}
         </>

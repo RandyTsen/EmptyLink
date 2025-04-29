@@ -68,6 +68,7 @@ export async function getShipmentById(id) {
       .from("containers_tracking")
       .select("*")
       .eq("shipment_id", id)
+      .order("container_no", { ascending: true })
 
     if (containersError) {
       console.error("Error fetching containers:", containersError)
@@ -101,6 +102,7 @@ export async function createShippingOrder(data) {
         vessel: data.vessel,
         eta: data.eta,
         created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
       })
       .select()
       .single()
@@ -114,10 +116,12 @@ export async function createShippingOrder(data) {
     const containersData = data.containers.map((container) => ({
       shipment_id: shipment.id,
       container_no: container.container_no,
+      container_type: container.container_type || "20' GP",
       status: container.status || "pending",
       gate_in_time: null,
       truck_no: null,
-      last_checked: new Date().toISOString(),
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
     }))
 
     const { error: containersError } = await supabase.from("containers_tracking").insert(containersData)
@@ -195,9 +199,9 @@ function determineShipmentStatus(containers) {
 
   const statuses = containers.map((c) => c.status.toLowerCase())
 
-  if (statuses.every((s) => s === "delivered")) {
+  if (statuses.every((s) => s === "delivered" || s === "gate in")) {
     return "completed"
-  } else if (statuses.some((s) => s === "in transit" || s === "delivered")) {
+  } else if (statuses.some((s) => s === "in transit" || s === "delivered" || s === "gate in")) {
     return "executing"
   } else {
     return "on plan"
@@ -205,61 +209,73 @@ function determineShipmentStatus(containers) {
 }
 
 /**
- * Updates the status of a container
- * @param {string} id - The container ID
- * @param {string} status - The new status
- * @returns {Promise<Object>} Updated container object
+ * Adds new containers to an existing shipment
+ * @param {string} shipmentId - The shipment ID
+ * @param {Array} containers - Array of container objects
+ * @returns {Promise<Array>} Array of created container objects
  */
-export async function updateContainerStatus(id, status) {
+export async function addContainersToShipment(shipmentId, containers) {
   try {
-    const { data, error } = await supabase
-      .from("containers_tracking")
-      .update({
-        status,
-        last_checked: new Date().toISOString(),
-      })
-      .eq("id", id)
-      .select()
-      .single()
+    const containersData = containers.map((container) => ({
+      shipment_id: shipmentId,
+      container_no: container.container_no,
+      container_type: container.container_type || "20' GP",
+      status: "pending", // Always start with pending status
+      gate_in_time: null,
+      truck_no: null,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    }))
+
+    const { data, error } = await supabase.from("containers_tracking").insert(containersData).select()
 
     if (error) {
-      console.error("Error updating container status:", error)
+      console.error("Error adding containers:", error)
       throw new Error(error.message)
     }
 
+    // Update the shipment's updated_at timestamp
+    await supabase.from("shipments").update({ updated_at: new Date().toISOString() }).eq("id", shipmentId)
+
     return data
   } catch (error) {
-    console.error("Error in updateContainerStatus:", error)
+    console.error("Error in addContainersToShipment:", error)
     throw error
   }
 }
 
 /**
- * Updates the truck number of a container
- * @param {string} id - The container ID
- * @param {string} truckNo - The new truck number
- * @returns {Promise<Object>} Updated container object
+ * Deletes a container
+ * @param {string} containerId - The container ID
+ * @returns {Promise<void>}
  */
-export async function updateContainerTruck(id, truckNo) {
+export async function deleteContainer(containerId) {
   try {
-    const { data, error } = await supabase
+    // First check if the container is in pending status
+    const { data: container, error: fetchError } = await supabase
       .from("containers_tracking")
-      .update({
-        truck_no: truckNo,
-        last_checked: new Date().toISOString(),
-      })
-      .eq("id", id)
-      .select()
+      .select("status")
+      .eq("id", containerId)
       .single()
 
-    if (error) {
-      console.error("Error updating container truck:", error)
-      throw new Error(error.message)
+    if (fetchError) {
+      console.error("Error fetching container:", fetchError)
+      throw new Error(fetchError.message)
     }
 
-    return data
+    // Only allow deletion of pending containers
+    if (container.status.toLowerCase() !== "pending") {
+      throw new Error("Only pending containers can be deleted")
+    }
+
+    const { error } = await supabase.from("containers_tracking").delete().eq("id", containerId)
+
+    if (error) {
+      console.error("Error deleting container:", error)
+      throw new Error(error.message)
+    }
   } catch (error) {
-    console.error("Error in updateContainerTruck:", error)
+    console.error("Error in deleteContainer:", error)
     throw error
   }
 }

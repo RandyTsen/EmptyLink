@@ -9,7 +9,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Skeleton } from "@/components/ui/skeleton"
-import { ArrowLeft, Package, Calendar, Truck, AlertCircle } from "lucide-react"
+import { ArrowLeft, Package, Calendar, Truck, AlertCircle, Edit, Ship } from "lucide-react"
+import Link from "next/link"
 
 export default function ShipmentDetailPage() {
   const router = useRouter()
@@ -41,7 +42,7 @@ export default function ShipmentDetailPage() {
   const getStatusBadgeClass = (status) => {
     const statusLower = status.toLowerCase()
 
-    if (statusLower.includes("delivered")) {
+    if (statusLower.includes("delivered") || statusLower === "gate in") {
       return "bg-green-100 text-green-800 hover:bg-green-200"
     } else if (statusLower.includes("transit")) {
       return "bg-blue-100 text-blue-800 hover:bg-blue-200"
@@ -131,17 +132,33 @@ export default function ShipmentDetailPage() {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
         <div>
           <h1 className="text-3xl font-bold flex items-center">
-            <Package className="mr-2 h-6 w-6" />
+            <Ship className="mr-2 h-6 w-6" />
             Shipment #{shipment.shipping_order_id}
           </h1>
-          <p className="text-gray-500 flex items-center mt-1">
-            <Calendar className="mr-2 h-4 w-4" />
-            ETA: {shipment.eta ? formatDate(shipment.eta) : "Not available"}
-          </p>
+          <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4 mt-1 text-gray-500">
+            <p className="flex items-center">
+              <Calendar className="mr-2 h-4 w-4" />
+              ETA: {shipment.eta ? formatDate(shipment.eta) : "Not available"}
+            </p>
+            {shipment.vessel && (
+              <p className="flex items-center">
+                <Package className="mr-2 h-4 w-4" />
+                Vessel: {shipment.vessel}
+              </p>
+            )}
+          </div>
         </div>
-        <Badge className="text-lg py-1 px-3">
-          {shipment.containers.length} Container{shipment.containers.length !== 1 ? "s" : ""}
-        </Badge>
+        <div className="flex items-center gap-3">
+          <Badge className="text-lg py-1 px-3">
+            {shipment.containers.length} Container{shipment.containers.length !== 1 ? "s" : ""}
+          </Badge>
+          <Link href={`/shipment/${id}/manage`}>
+            <Button className="flex items-center gap-2">
+              <Edit className="h-4 w-4" />
+              Manage Containers
+            </Button>
+          </Link>
+        </div>
       </div>
 
       <Card className="mt-8">
@@ -150,13 +167,21 @@ export default function ShipmentDetailPage() {
         </CardHeader>
         <CardContent>
           {shipment.containers.length === 0 ? (
-            <div className="text-center text-gray-500 italic py-8">No containers found for this shipment.</div>
+            <div className="text-center text-gray-500 italic py-8">
+              No containers found for this shipment.
+              <div className="mt-4">
+                <Link href={`/shipment/${id}/manage`}>
+                  <Button>Add Containers</Button>
+                </Link>
+              </div>
+            </div>
           ) : (
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Container No</TableHead>
+                    <TableHead>Container Type</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Gate In Time</TableHead>
                     <TableHead>
@@ -171,6 +196,7 @@ export default function ShipmentDetailPage() {
                   {shipment.containers.map((container) => (
                     <TableRow key={container.id}>
                       <TableCell className="font-medium">{container.container_no}</TableCell>
+                      <TableCell>{container.container_type || "Not specified"}</TableCell>
                       <TableCell>
                         <Badge className={getStatusBadgeClass(container.status)}>{container.status}</Badge>
                       </TableCell>

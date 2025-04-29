@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { CalendarIcon, Upload, Plus, Trash2, ArrowLeft, Ship } from "lucide-react"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
@@ -19,19 +20,34 @@ import { createShippingOrder } from "@/services/dbService"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { read, utils } from "xlsx"
 
+// Container types options
+const CONTAINER_TYPES = [
+  "20' GP", // 20-foot general purpose
+  "40' GP", // 40-foot general purpose
+  "40' HC", // 40-foot high cube
+  "40' HR", // 40-foot high cube reefer
+  "20' RF", // 20-foot reefer
+  "40' RF", // 40-foot reefer
+  "20' OT", // 20-foot open top
+  "40' OT", // 40-foot open top
+  "20' FR", // 20-foot flat rack
+  "40' FR", // 40-foot flat rack
+  "20' TK", // 20-foot tank
+]
+
 export default function NewShippingOrderPage() {
   const router = useRouter()
   const [date, setDate] = useState<Date>()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
-  const [containers, setContainers] = useState<{ container_no: string; status: string }[]>([
-    { container_no: "", status: "pending" },
+  const [containers, setContainers] = useState<{ container_no: string; container_type: string; status: string }[]>([
+    { container_no: "", container_type: "20' GP", status: "pending" },
   ])
   const [bulkContainers, setBulkContainers] = useState<string>("")
 
   const handleAddContainer = () => {
-    setContainers([...containers, { container_no: "", status: "pending" }])
+    setContainers([...containers, { container_no: "", container_type: "20' GP", status: "pending" }])
   }
 
   const handleRemoveContainer = (index: number) => {
@@ -40,9 +56,9 @@ export default function NewShippingOrderPage() {
     setContainers(newContainers)
   }
 
-  const handleContainerChange = (index: number, value: string) => {
+  const handleContainerChange = (index: number, field: string, value: string) => {
     const newContainers = [...containers]
-    newContainers[index].container_no = value
+    newContainers[index][field] = value
     setContainers(newContainers)
   }
 
@@ -59,6 +75,7 @@ export default function NewShippingOrderPage() {
       .filter((line) => line)
       .map((container_no) => ({
         container_no,
+        container_type: "20' GP", // Default container type for bulk entries
         status: "pending",
       }))
   }
@@ -71,7 +88,7 @@ export default function NewShippingOrderPage() {
       const data = await file.arrayBuffer()
       const workbook = read(data)
       const worksheet = workbook.Sheets[workbook.SheetNames[0]]
-      const jsonData = utils.sheet_to_json<{ container_no: string }>(worksheet)
+      const jsonData = utils.sheet_to_json<{ container_no: string; container_type?: string }>(worksheet)
 
       if (jsonData.length === 0 || !jsonData[0].container_no) {
         setError("Invalid Excel format. Please ensure the file has a 'container_no' column.")
@@ -80,6 +97,7 @@ export default function NewShippingOrderPage() {
 
       const newContainers = jsonData.map((row) => ({
         container_no: row.container_no,
+        container_type: row.container_type || "20' GP", // Use provided type or default
         status: "pending",
       }))
 
@@ -129,7 +147,7 @@ export default function NewShippingOrderPage() {
 
       setSuccess("Shipping order created successfully!")
       form.reset()
-      setContainers([{ container_no: "", status: "pending" }])
+      setContainers([{ container_no: "", container_type: "20' GP", status: "pending" }])
       setBulkContainers("")
       setDate(undefined)
 
@@ -221,9 +239,24 @@ export default function NewShippingOrderPage() {
                         <Input
                           placeholder="Container Number"
                           value={container.container_no}
-                          onChange={(e) => handleContainerChange(index, e.target.value)}
+                          onChange={(e) => handleContainerChange(index, "container_no", e.target.value)}
                           className="flex-1"
                         />
+                        <Select
+                          value={container.container_type}
+                          onValueChange={(value) => handleContainerChange(index, "container_type", value)}
+                        >
+                          <SelectTrigger className="w-[140px]">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {CONTAINER_TYPES.map((type) => (
+                              <SelectItem key={type} value={type}>
+                                {type}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                         <Button
                           type="button"
                           variant="ghost"
@@ -251,6 +284,10 @@ export default function NewShippingOrderPage() {
                         value={bulkContainers}
                         onChange={handleBulkContainersChange}
                       />
+                      <p className="text-xs text-gray-500 mt-2">
+                        Note: Bulk entries will use the default container type (20' GP). For specific container types,
+                        use individual entry or Excel upload.
+                      </p>
                     </div>
                     <div className="text-center relative">
                       <div className="absolute inset-0 flex items-center">
@@ -277,8 +314,20 @@ export default function NewShippingOrderPage() {
                         </Label>
                       </div>
                       <p className="text-xs text-gray-500 mt-2">
-                        Excel file should have a column named &quot;container_no&quot;
+                        Excel file should have columns named &quot;container_no&quot; and &quot;container_type&quot;
                       </p>
+                      <div className="mt-4 p-3 bg-blue-50 rounded-md text-sm text-blue-800">
+                        <p className="font-medium">Excel Template Format:</p>
+                        <p className="mt-1">Your Excel file should have these columns:</p>
+                        <ul className="list-disc pl-5 mt-1">
+                          <li>
+                            <strong>container_no</strong> - Container number (required)
+                          </li>
+                          <li>
+                            <strong>container_type</strong> - Container type (optional, defaults to 20' GP)
+                          </li>
+                        </ul>
+                      </div>
                     </div>
                   </div>
                 </TabsContent>
