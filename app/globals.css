@@ -88,6 +88,6 @@ body {
     --sidebar-primary: 224.3 76.3% 48%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 240 3.7% 15.9%;
+    --sidebar-accent-foreground: 0 0% 98%;
+  }
 }
-
-Now, let's create a new responsive layout for the main page that will display up to 4 shipping orders in a grid:
