@@ -7,7 +7,6 @@ import { formatDate } from "@/utils/formatters"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Skeleton } from "@/components/ui/skeleton"
 import { ArrowLeft, Package, Calendar, Truck, AlertCircle, Edit, Ship } from "lucide-react"
 import Link from "next/link"
@@ -176,36 +175,43 @@ export default function ShipmentDetailPage() {
               </div>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Container No</TableHead>
-                    <TableHead>Container Type</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Gate In Time</TableHead>
-                    <TableHead>
-                      <div className="flex items-center">
-                        <Truck className="mr-1 h-4 w-4" />
-                        Truck No
-                      </div>
-                    </TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
+            <div className="p-4">
+              <div className="overflow-x-auto">
+                <div className="flex gap-4 pb-2">
                   {shipment.containers.map((container) => (
-                    <TableRow key={container.id}>
-                      <TableCell className="font-medium">{container.container_no}</TableCell>
-                      <TableCell>{container.container_type || "Not specified"}</TableCell>
-                      <TableCell>
-                        <Badge className={getStatusBadgeClass(container.status)}>{container.status}</Badge>
-                      </TableCell>
-                      <TableCell>{container.gate_in_time ? formatDate(container.gate_in_time) : "N/A"}</TableCell>
-                      <TableCell>{container.truck_no || "N/A"}</TableCell>
-                    </TableRow>
+                    <div key={container.id} className="min-w-[250px] border rounded-md p-4 bg-white shadow-sm">
+                      <div className="font-medium text-lg mb-3">{container.container_no}</div>
+                      <div className="space-y-3">
+                        <div className="flex justify-between">
+                          <span className="text-gray-500">Type:</span>
+                          <span>{container.container_type || "N/A"}</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-gray-500">Status:</span>
+                          <Badge className={getStatusBadgeClass(container.status)}>{container.status}</Badge>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-500">Gate In:</span>
+                          <span>{container.gate_in_time ? formatDate(container.gate_in_time) : "N/A"}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-500">Truck:</span>
+                          <span className="flex items-center">
+                            {container.truck_no ? (
+                              <>
+                                <Truck className="mr-1 h-3 w-3" />
+                                {container.truck_no}
+                              </>
+                            ) : (
+                              "N/A"
+                            )}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
                   ))}
-                </TableBody>
-              </Table>
+                </div>
+              </div>
             </div>
           )}
         </CardContent>

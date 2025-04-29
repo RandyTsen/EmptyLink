@@ -4,7 +4,7 @@ import { formatDate } from "@/utils/formatters"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Truck, Calendar, Package, Ship } from "lucide-react"
+import { Calendar, Package, Ship, Edit } from "lucide-react"
 import Link from "next/link"
 
 interface Container {
@@ -57,16 +57,19 @@ export default function ShipmentCard({ shipment }: ShipmentCardProps) {
     pending: shipment.containers.filter((c) => c.status.toLowerCase() === "pending").length,
   }
 
+  const completionPercentage =
+    containerCounts.total > 0 ? Math.round((containerCounts.delivered / containerCounts.total) * 100) : 0
+
   return (
-    <Card className="overflow-hidden shadow-md hover:shadow-lg transition-shadow duration-300 h-full">
+    <Card className="min-w-[400px] w-[400px] overflow-hidden shadow-md hover:shadow-lg transition-shadow duration-300 h-full">
       <CardHeader className="bg-slate-800 text-white p-4">
-        <div className="flex justify-between items-center">
+        <div className="flex justify-between items-start">
           <div>
-            <h2 className="text-xl font-bold flex items-center">
-              <Ship className="mr-2 h-5 w-5" />
-              {shipment.shipping_order_id}
-            </h2>
-            <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4 mt-1 text-sm">
+            <div className="flex items-center gap-2">
+              <Ship className="h-5 w-5" />
+              <h2 className="text-xl font-bold">{shipment.shipping_order_id}</h2>
+            </div>
+            <div className="flex flex-col gap-1 mt-1 text-sm">
               <p className="flex items-center">
                 <Calendar className="mr-1 h-4 w-4" />
                 {shipment.eta ? formatDate(shipment.eta) : "ETA: N/A"}
@@ -74,14 +77,26 @@ export default function ShipmentCard({ shipment }: ShipmentCardProps) {
               {shipment.vessel && (
                 <p className="flex items-center">
                   <Package className="mr-1 h-4 w-4" />
-                  {shipment.vessel}
+                  Vessel: {shipment.vessel}
                 </p>
               )}
             </div>
           </div>
-          <Badge variant="outline" className="text-white border-white">
-            {containerCounts.total} Container{containerCounts.total !== 1 ? "s" : ""}
-          </Badge>
+          <Link href={`/shipment/${shipment.id}/edit`}>
+            <button className="p-1.5 rounded-full bg-white/20 hover:bg-white/30 transition-colors">
+              <Edit className="h-4 w-4 text-white" />
+            </button>
+          </Link>
+        </div>
+        <div className="mt-3 text-sm">
+          <div className="flex items-center justify-between">
+            <div>
+              Total: {containerCounts.total} | Pending: {containerCounts.pending} | Completion: {completionPercentage}%
+            </div>
+          </div>
+          <div className="w-full mt-1 bg-gray-700 rounded-full h-2.5">
+            <div className="bg-green-500 h-2.5 rounded-full" style={{ width: `${completionPercentage}%` }}></div>
+          </div>
         </div>
       </CardHeader>
 
@@ -89,34 +104,29 @@ export default function ShipmentCard({ shipment }: ShipmentCardProps) {
         {containerCounts.total === 0 ? (
           <div className="p-4 text-center text-gray-500 italic">No containers found for this shipment.</div>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="overflow-x-hidden">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Container No</TableHead>
+                  <TableHead>Container</TableHead>
                   <TableHead>Type</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead>
-                    <div className="flex items-center">
-                      <Truck className="mr-1 h-4 w-4" />
-                      Truck
-                    </div>
-                  </TableHead>
+                  <TableHead>Truck Time</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {shipment.containers.map((container) => (
                   <TableRow key={container.id}>
-                    <TableCell className="font-medium">
-                      <Link href={`/shipment/${shipment.id}`} className="hover:underline">
-                        {container.container_no}
-                      </Link>
-                    </TableCell>
+                    <TableCell className="font-medium">{container.container_no}</TableCell>
                     <TableCell>{container.container_type || "N/A"}</TableCell>
                     <TableCell>
-                      <Badge className={getStatusBadgeClass(container.status)}>{container.status}</Badge>
+                      {container.status ? (
+                        <Badge className={getStatusBadgeClass(container.status)}>{container.status}</Badge>
+                      ) : (
+                        "-"
+                      )}
                     </TableCell>
-                    <TableCell>{container.truck_no || "N/A"}</TableCell>
+                    <TableCell>{container.gate_in_time ? formatDate(container.gate_in_time) : "-"}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>

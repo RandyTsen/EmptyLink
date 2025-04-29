@@ -139,6 +139,69 @@ export async function createShippingOrder(data) {
 }
 
 /**
+ * Updates a shipping order
+ * @param {string} id - The shipment ID
+ * @param {Object} data - Updated shipping order data
+ * @returns {Promise<Object>} Updated shipping order
+ */
+export async function updateShipment(id, data) {
+  try {
+    const { data: shipment, error } = await supabase
+      .from("shipments")
+      .update({
+        shipping_order_id: data.shipping_order_id,
+        vessel: data.vessel,
+        eta: data.eta,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", id)
+      .select()
+      .single()
+
+    if (error) {
+      console.error("Error updating shipping order:", error)
+      throw new Error(error.message)
+    }
+
+    return shipment
+  } catch (error) {
+    console.error("Error in updateShipment:", error)
+    throw error
+  }
+}
+
+/**
+ * Updates a container
+ * @param {string} id - The container ID
+ * @param {Object} data - Updated container data
+ * @returns {Promise<Object>} Updated container
+ */
+export async function updateContainer(id, data) {
+  try {
+    const { data: container, error } = await supabase
+      .from("containers_tracking")
+      .update({
+        container_no: data.container_no,
+        container_type: data.container_type,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", id)
+      .select()
+      .single()
+
+    if (error) {
+      console.error("Error updating container:", error)
+      throw new Error(error.message)
+    }
+
+    return container
+  } catch (error) {
+    console.error("Error in updateContainer:", error)
+    throw error
+  }
+}
+
+/**
  * Fetches all shipping orders with their status
  * @returns {Promise<Array>} Array of shipping order objects
  */
