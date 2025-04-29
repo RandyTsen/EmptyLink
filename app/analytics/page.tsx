@@ -10,10 +10,21 @@ import { DatePickerWithRange } from "@/components/ui/date-range-picker"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
-import { ArrowLeft, BarChart3, PieChart, LineChart, TrendingUp, Filter, RefreshCw } from "lucide-react"
-import { getShipmentsWithTracking } from "@/services/dbService"
+import {
+  ArrowLeft,
+  BarChart3,
+  PieChart,
+  LineChart,
+  TrendingUp,
+  Filter,
+  RefreshCw,
+  Archive,
+  ExternalLink,
+} from "lucide-react"
+import { getAllShipmentsForAnalytics } from "@/services/dbService"
 import { formatDate } from "@/utils/formatters"
 import { format, isWithinInterval, subDays } from "date-fns"
+import Link from "next/link"
 import {
   BarChart,
   Bar,
@@ -61,6 +72,7 @@ export default function AnalyticsDashboard() {
   const [error, setError] = useState(null)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [lastRefreshed, setLastRefreshed] = useState(new Date())
+  const [showArchived, setShowArchived] = useState(true)
 
   // Filters
   const [dateRange, setDateRange] = useState({
@@ -73,7 +85,7 @@ export default function AnalyticsDashboard() {
   const fetchData = async () => {
     try {
       setIsRefreshing(true)
-      const data = await getShipmentsWithTracking()
+      const data = await getAllShipmentsForAnalytics() // Get all shipments including archived
       setShipments(data)
       setLastRefreshed(new Date())
       setError(null)
@@ -90,11 +102,12 @@ export default function AnalyticsDashboard() {
     fetchData()
   }, [])
 
-  // Filter data based on selected filters
+  // Filter data based on selected filters and archive status
   const filteredData = useMemo(() => {
     if (!shipments.length) return []
 
     return shipments
+      .filter((shipment) => showArchived || !shipment.archived)
       .filter((shipment) => {
         // Filter by date range
         if (dateRange.from && dateRange.to) {
@@ -110,7 +123,7 @@ export default function AnalyticsDashboard() {
         }
         return true
       })
-  }, [shipments, dateRange, selectedShipment])
+  }, [shipments, dateRange, selectedShipment, showArchived])
 
   // Get all containers from filtered shipments
   const filteredContainers = useMemo(() => {
@@ -124,6 +137,7 @@ export default function AnalyticsDashboard() {
           ...container,
           shipping_order_id: shipment.shipping_order_id,
           eta: shipment.eta,
+          archived: shipment.archived,
         })),
       ]
     })
@@ -200,6 +214,7 @@ export default function AnalyticsDashboard() {
         rate: completionRate,
         total,
         completed,
+        archived: shipment.archived,
       }
     })
   }, [filteredData])
@@ -251,6 +266,7 @@ export default function AnalyticsDashboard() {
         delayed: 0,
         pending: 0,
         completionRate: 0,
+        archived: 0,
       }
 
     const total = filteredContainers.length
@@ -261,6 +277,7 @@ export default function AnalyticsDashboard() {
     const delayed = filteredContainers.filter((c) => c.status.toLowerCase() === "delayed").length
     const pending = filteredContainers.filter((c) => c.status.toLowerCase() === "pending").length
     const completionRate = total > 0 ? Math.round((completed / total) * 100) : 0
+    const archived = filteredData.filter((s) => s.archived).length
 
     return {
       total,
@@ -269,8 +286,9 @@ export default function AnalyticsDashboard() {
       delayed,
       pending,
       completionRate,
+      archived,
     }
-  }, [filteredContainers])
+  }, [filteredContainers, filteredData])
 
   // Custom tooltip for charts
   const CustomTooltip = ({ active, payload, label }) => {
@@ -370,7 +388,7 @@ export default function AnalyticsDashboard() {
                       <SelectItem value="all">All Shipping Orders</SelectItem>
                       {shipments.map((shipment) => (
                         <SelectItem key={shipment.id} value={shipment.id}>
-                          {shipment.shipping_order_id}
+                          {shipment.shipping_order_id} {shipment.archived && "(Archived)"}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -392,12 +410,24 @@ export default function AnalyticsDashboard() {
                     </SelectContent>
                   </Select>
                 </div>
+                <div className="flex-1">
+                  <label className="text-sm font-medium mb-1 block">Show Archived</label>
+                  <Select value={showArchived.toString()} onValueChange={(value) => setShowArchived(value === "true")}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="true">Include Archived</SelectItem>
+                      <SelectItem value="false">Active Only</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
             </CardContent>
           </Card>
 
           {/* Summary Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4 mb-6">
             <Card>
               <CardHeader className="pb-2">
                 <CardDescription>Total Containers</CardDescription>
@@ -442,6 +472,14 @@ export default function AnalyticsDashboard() {
                     style={{ width: `${summaryStats.completionRate}%` }}
                   ></div>
                 </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="pb-2">
+                <CardDescription>Archived Orders</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-bold text-gray-600">{summaryStats.archived}</div>
               </CardContent>
             </Card>
           </div>
@@ -664,12 +702,14 @@ export default function AnalyticsDashboard() {
                       <th className="border p-2 text-left">In Transit</th>
                       <th className="border p-2 text-left">Delayed</th>
                       <th className="border p-2 text-left">Completion Rate</th>
+                      <th className="border p-2 text-left">Status</th>
+                      <th className="border p-2 text-left">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
                     {filteredData.length === 0 ? (
                       <tr>
-                        <td colSpan={7} className="border p-4 text-center text-gray-500">
+                        <td colSpan={9} className="border p-4 text-center text-gray-500">
                           No data available for the selected filters
                         </td>
                       </tr>
@@ -709,6 +749,24 @@ export default function AnalyticsDashboard() {
                                 </div>
                                 <span>{completionRate}%</span>
                               </div>
+                            </td>
+                            <td className="border p-2">
+                              {shipment.archived ? (
+                                <Badge className="bg-gray-100 text-gray-800">
+                                  <Archive className="h-3 w-3 mr-1" />
+                                  Archived
+                                </Badge>
+                              ) : (
+                                <Badge className="bg-blue-100 text-blue-800">Active</Badge>
+                              )}
+                            </td>
+                            <td className="border p-2">
+                              <Link href={`/shipment/${shipment.id}`}>
+                                <Button variant="outline" size="sm" className="flex items-center gap-1">
+                                  <ExternalLink className="h-3 w-3" />
+                                  View
+                                </Button>
+                              </Link>
                             </td>
                           </tr>
                         )

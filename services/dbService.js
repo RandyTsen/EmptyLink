@@ -2,15 +2,17 @@ import supabase from "./supabaseClient"
 
 /**
  * Fetches all shipments with their associated container tracking information
+ * @param {boolean} includeArchived - Whether to include archived shipments
  * @returns {Promise<Array>} Array of shipment objects with nested containers
  */
-export async function getShipmentsWithTracking() {
+export async function getShipmentsWithTracking(includeArchived = false) {
   try {
     // Fetch all shipments
-    const { data: shipments, error: shipmentsError } = await supabase
-      .from("shipments")
-      .select("*")
-      .order("eta", { ascending: true })
+    const query = supabase.from("shipments").select("*").order("eta", { ascending: true })
+
+    // Only filter by archived status if includeArchived is false
+    // We'll handle filtering in memory to be more resilient to schema changes
+    const { data: shipments, error: shipmentsError } = await query
 
     if (shipmentsError) {
       console.error("Error fetching shipments:", shipmentsError)
@@ -34,18 +36,68 @@ export async function getShipmentsWithTracking() {
       return acc
     }, {})
 
-    // Combine shipments with their containers
-    const shipmentsWithContainers = shipments.map((shipment) => ({
+    // Combine shipments with their containers and filter by archived status in memory
+    let shipmentsWithContainers = shipments.map((shipment) => ({
       ...shipment,
       containers: containersByShipment[shipment.id] || [],
       status: determineShipmentStatus(containersByShipment[shipment.id] || []),
+      // Ensure archived is a boolean, default to false if not present
+      archived: shipment.archived === true,
     }))
+
+    // Filter out archived shipments if not requested
+    if (!includeArchived) {
+      shipmentsWithContainers = shipmentsWithContainers.filter((shipment) => !shipment.archived)
+    }
 
     return shipmentsWithContainers
   } catch (error) {
     console.error("Error in getShipmentsWithTracking:", error)
     throw error
   }
+}
+
+/**
+ * Updates a shipment's archive status
+ * @param {string} id - The shipment ID
+ * @param {boolean} archived - Whether the shipment should be archived
+ * @returns {Promise<Object>} Updated shipment
+ */
+export async function updateShipmentArchiveStatus(id, archived) {
+  try {
+    // Create an update object with only the fields we want to update
+    const updateData = {
+      archived: archived,
+    }
+
+    // Add updated_at if it exists in the schema
+    try {
+      updateData.updated_at = new Date().toISOString()
+    } catch (e) {
+      console.warn("Could not set updated_at field:", e)
+    }
+
+    const { data: shipment, error } = await supabase.from("shipments").update(updateData).eq("id", id).select().single()
+
+    if (error) {
+      console.error("Error updating shipment archive status:", error)
+      throw new Error(error.message)
+    }
+
+    return shipment
+  } catch (error) {
+    console.error("Error in updateShipmentArchiveStatus:", error)
+    throw error
+  }
+}
+
+/**
+ * Fetches all shipments with their associated container tracking information for analytics
+ * @returns {Promise<Array>} Array of shipment objects with nested containers
+ */
+export async function getAllShipmentsForAnalytics() {
+  // This function includes all shipments, including archived ones
+  return getShipmentsWithTracking(true)
 }
 
 /**
@@ -80,6 +132,8 @@ export async function getShipmentById(id) {
       ...shipment,
       containers: containers || [],
       status: determineShipmentStatus(containers || []),
+      // Ensure archived is a boolean, default to false if not present
+      archived: shipment.archived === true,
     }
   } catch (error) {
     console.error("Error in getShipmentById:", error)
@@ -94,16 +148,26 @@ export async function getShipmentById(id) {
  */
 export async function createShippingOrder(data) {
   try {
-    // Create the shipping order
+    // Create the shipping order with required fields
+    const shipmentData = {
+      shipping_order_id: data.shipping_order_id,
+      vessel: data.vessel,
+      eta: data.eta,
+      archived: false, // Default to not archived
+    }
+
+    // Add timestamps if they exist in the schema
+    try {
+      const now = new Date().toISOString()
+      shipmentData.created_at = now
+      shipmentData.updated_at = now
+    } catch (e) {
+      console.warn("Could not set timestamp fields:", e)
+    }
+
     const { data: shipment, error: shipmentError } = await supabase
       .from("shipments")
-      .insert({
-        shipping_order_id: data.shipping_order_id,
-        vessel: data.vessel,
-        eta: data.eta,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      })
+      .insert(shipmentData)
       .select()
       .single()
 
@@ -120,8 +184,6 @@ export async function createShippingOrder(data) {
       status: container.status || "pending",
       gate_in_time: null,
       truck_no: null,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
     }))
 
     const { error: containersError } = await supabase.from("containers_tracking").insert(containersData)
@@ -146,17 +208,21 @@ export async function createShippingOrder(data) {
  */
 export async function updateShipment(id, data) {
   try {
-    const { data: shipment, error } = await supabase
-      .from("shipments")
-      .update({
-        shipping_order_id: data.shipping_order_id,
-        vessel: data.vessel,
-        eta: data.eta,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", id)
-      .select()
-      .single()
+    // Create an update object with only the fields we want to update
+    const updateData = {
+      shipping_order_id: data.shipping_order_id,
+      vessel: data.vessel,
+      eta: data.eta,
+    }
+
+    // Add updated_at if it exists in the schema
+    try {
+      updateData.updated_at = new Date().toISOString()
+    } catch (e) {
+      console.warn("Could not set updated_at field:", e)
+    }
+
+    const { data: shipment, error } = await supabase.from("shipments").update(updateData).eq("id", id).select().single()
 
     if (error) {
       console.error("Error updating shipping order:", error)
@@ -178,13 +244,22 @@ export async function updateShipment(id, data) {
  */
 export async function updateContainer(id, data) {
   try {
+    // Create an update object with only the fields we want to update
+    const updateData = {
+      container_no: data.container_no,
+      container_type: data.container_type,
+    }
+
+    // Add updated_at if needed
+    try {
+      updateData.updated_at = new Date().toISOString()
+    } catch (e) {
+      console.warn("Could not set updated_at field:", e)
+    }
+
     const { data: container, error } = await supabase
       .from("containers_tracking")
-      .update({
-        container_no: data.container_no,
-        container_type: data.container_type,
-        updated_at: new Date().toISOString(),
-      })
+      .update(updateData)
       .eq("id", id)
       .select()
       .single()
@@ -242,6 +317,8 @@ export async function getAllShippingOrders() {
         ...shipment,
         containers: shipmentContainers,
         status: determineShipmentStatus(shipmentContainers),
+        // Ensure archived is a boolean, default to false if not present
+        archived: shipment.archived === true,
       }
     })
 
@@ -286,8 +363,6 @@ export async function addContainersToShipment(shipmentId, containers) {
       status: "pending", // Always start with pending status
       gate_in_time: null,
       truck_no: null,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
     }))
 
     const { data, error } = await supabase.from("containers_tracking").insert(containersData).select()
@@ -297,8 +372,12 @@ export async function addContainersToShipment(shipmentId, containers) {
       throw new Error(error.message)
     }
 
-    // Update the shipment's updated_at timestamp
-    await supabase.from("shipments").update({ updated_at: new Date().toISOString() }).eq("id", shipmentId)
+    // Update the shipment's updated_at timestamp if the column exists
+    try {
+      await supabase.from("shipments").update({ updated_at: new Date().toISOString() }).eq("id", shipmentId)
+    } catch (e) {
+      console.warn("Could not update shipment timestamp:", e)
+    }
 
     return data
   } catch (error) {
@@ -339,6 +418,34 @@ export async function deleteContainer(containerId) {
     }
   } catch (error) {
     console.error("Error in deleteContainer:", error)
+    throw error
+  }
+}
+
+/**
+ * Deletes a shipment and its associated containers
+ * @param {string} shipmentId - The shipment ID
+ * @returns {Promise<void>}
+ */
+export async function deleteShipment(shipmentId) {
+  try {
+    // First delete all containers associated with this shipment
+    const { error: containersError } = await supabase.from("containers_tracking").delete().eq("shipment_id", shipmentId)
+
+    if (containersError) {
+      console.error("Error deleting containers:", containersError)
+      throw new Error(containersError.message)
+    }
+
+    // Then delete the shipment itself
+    const { error: shipmentError } = await supabase.from("shipments").delete().eq("id", shipmentId)
+
+    if (shipmentError) {
+      console.error("Error deleting shipment:", shipmentError)
+      throw new Error(shipmentError.message)
+    }
+  } catch (error) {
+    console.error("Error in deleteShipment:", error)
     throw error
   }
 }

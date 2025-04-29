@@ -28,7 +28,8 @@ export default function Home() {
   const fetchData = async () => {
     try {
       setIsRefreshing(true)
-      const data = await getShipmentsWithTracking()
+      // Get only non-archived shipments for the main page
+      const data = await getShipmentsWithTracking(false)
       setShipments(data)
       setLastRefreshed(new Date())
       setError(null)
@@ -45,7 +46,7 @@ export default function Home() {
     fetchData()
 
     // Auto-refresh setup
-    let intervalId: NodeJS.Timeout | null = null
+    let intervalId = null
 
     if (autoRefreshEnabled) {
       intervalId = setInterval(fetchData, AUTO_REFRESH_INTERVAL)
@@ -86,6 +87,11 @@ export default function Home() {
 
   const formatRefreshTime = (date) => {
     return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+  }
+
+  const handleArchive = (shipmentId) => {
+    // Remove the archived shipment from the local state
+    setShipments(shipments.filter((s) => s.id !== shipmentId))
   }
 
   const renderShipmentSkeletons = () => {
@@ -228,7 +234,7 @@ export default function Home() {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
               {filteredShipments.map((shipment) => (
-                <ShipmentCard key={shipment.id} shipment={shipment} />
+                <ShipmentCard key={shipment.id} shipment={shipment} onArchive={handleArchive} />
               ))}
             </div>
           )}

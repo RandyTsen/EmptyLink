@@ -1,11 +1,15 @@
 "use client"
 
+import { useState } from "react"
 import { formatDate } from "@/utils/formatters"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Calendar, Package, Ship, Edit } from "lucide-react"
+import { Calendar, Package, Ship, Edit, CheckCircle, AlertTriangle } from "lucide-react"
 import Link from "next/link"
+import { updateShipmentArchiveStatus } from "@/services/dbService"
+import { differenceInDays } from "date-fns"
 
 interface Container {
   id: string
@@ -23,13 +27,17 @@ interface Shipment {
   vessel: string | null
   eta: string | null
   containers: Container[]
+  archived?: boolean
 }
 
 interface ShipmentCardProps {
   shipment: Shipment
+  onArchive?: (shipmentId: string) => void
 }
 
-export default function ShipmentCard({ shipment }: ShipmentCardProps) {
+export default function ShipmentCard({ shipment, onArchive }: ShipmentCardProps) {
+  const [isArchiving, setIsArchiving] = useState(false)
+
   const getStatusBadgeClass = (status: string): string => {
     const statusLower = status.toLowerCase()
 
@@ -60,16 +68,60 @@ export default function ShipmentCard({ shipment }: ShipmentCardProps) {
   const completionPercentage =
     containerCounts.total > 0 ? Math.round((containerCounts.delivered / containerCounts.total) * 100) : 0
 
-  // Generate a gradient color based on completion percentage
+  const isCompleted = completionPercentage === 100
+
+  // Calculate days until ETA for priority coloring
+  const calculateDaysUntilEta = () => {
+    if (!shipment.eta) return null
+
+    const etaDate = new Date(shipment.eta)
+    const today = new Date()
+    return differenceInDays(etaDate, today)
+  }
+
+  const daysUntilEta = calculateDaysUntilEta()
+
+  // Generate a gradient color based on time priority and completion
   const getGradientColor = () => {
-    if (completionPercentage >= 75) {
-      return "from-teal-600 to-teal-700"
-    } else if (completionPercentage >= 50) {
-      return "from-cyan-600 to-cyan-700"
-    } else if (completionPercentage >= 25) {
+    // If completed, use grey
+    if (isCompleted) {
+      return "from-gray-500 to-gray-600"
+    }
+
+    // If no ETA, use default blue
+    if (daysUntilEta === null) {
       return "from-blue-600 to-blue-700"
+    }
+
+    // Priority based on days until ETA
+    if (daysUntilEta < 0) {
+      // Past due date
+      return "from-red-600 to-red-700"
+    } else if (daysUntilEta < 3) {
+      // Approaching due date (less than 3 days)
+      return "from-amber-600 to-amber-700"
+    } else if (daysUntilEta < 7) {
+      // Getting closer (less than a week)
+      return "from-yellow-600 to-yellow-700"
     } else {
-      return "from-indigo-600 to-indigo-700"
+      // Plenty of time (more than a week)
+      return "from-green-600 to-green-700"
+    }
+  }
+
+  const handleArchive = async () => {
+    if (!isCompleted) return
+
+    try {
+      setIsArchiving(true)
+      await updateShipmentArchiveStatus(shipment.id, true)
+      if (onArchive) {
+        onArchive(shipment.id)
+      }
+    } catch (error) {
+      console.error("Error archiving shipment:", error)
+    } finally {
+      setIsArchiving(false)
     }
   }
 
@@ -86,6 +138,12 @@ export default function ShipmentCard({ shipment }: ShipmentCardProps) {
               <p className="flex items-center">
                 <Calendar className="mr-1 h-4 w-4" />
                 {shipment.eta ? formatDate(shipment.eta) : "ETA: N/A"}
+                {daysUntilEta !== null && daysUntilEta < 0 && (
+                  <span className="ml-2 flex items-center text-yellow-200">
+                    <AlertTriangle className="h-3 w-3 mr-1" />
+                    Overdue
+                  </span>
+                )}
               </p>
               {shipment.vessel && (
                 <p className="flex items-center">
@@ -111,6 +169,18 @@ export default function ShipmentCard({ shipment }: ShipmentCardProps) {
             <div className="bg-white h-2.5 rounded-full" style={{ width: `${completionPercentage}%` }}></div>
           </div>
         </div>
+        {isCompleted && (
+          <div className="mt-3">
+            <Button
+              onClick={handleArchive}
+              disabled={isArchiving}
+              className="w-full bg-white/20 hover:bg-white/30 text-white flex items-center justify-center gap-2"
+            >
+              <CheckCircle className="h-4 w-4" />
+              {isArchiving ? "Archiving..." : "Mark as Complete & Archive"}
+            </Button>
+          </div>
+        )}
       </CardHeader>
 
       <CardContent className="p-0">

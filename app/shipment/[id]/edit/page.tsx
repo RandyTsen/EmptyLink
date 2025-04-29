@@ -23,6 +23,7 @@ import {
   addContainersToShipment,
   deleteContainer,
   updateContainer,
+  deleteShipment,
 } from "@/services/dbService"
 import { TimeField } from "@/components/ui/time-field"
 import { Textarea } from "@/components/ui/textarea"
@@ -316,6 +317,28 @@ export default function EditShipmentPage() {
     }
   }
 
+  const handleDeleteShipment = async () => {
+    if (
+      !confirm(
+        "Are you sure you want to delete this shipping order? This action cannot be undone and will delete all associated containers.",
+      )
+    ) {
+      return
+    }
+
+    try {
+      setIsSubmitting(true)
+      await deleteShipment(id)
+
+      // Redirect back to the main page after successful deletion
+      router.push("/")
+    } catch (err) {
+      console.error("Error deleting shipment:", err)
+      setError("Failed to delete shipping order. Please try again.")
+      setIsSubmitting(false)
+    }
+  }
+
   const getStatusBadgeClass = (status) => {
     const statusLower = status.toLowerCase()
 
@@ -492,10 +515,23 @@ export default function EditShipmentPage() {
                   </div>
                 </div>
 
-                <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700" disabled={isSubmitting}>
-                  <Save className="mr-2 h-4 w-4" />
-                  {isSubmitting ? "Saving..." : "Save Shipping Order Details"}
-                </Button>
+                <div className="flex flex-col sm:flex-row gap-2 mt-6">
+                  <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700" disabled={isSubmitting}>
+                    <Save className="mr-2 h-4 w-4" />
+                    {isSubmitting ? "Saving..." : "Save Shipping Order Details"}
+                  </Button>
+
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full border-red-300 text-red-600 hover:bg-red-50 hover:text-red-700"
+                    onClick={handleDeleteShipment}
+                    disabled={isSubmitting}
+                  >
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    {isSubmitting ? "Delete Shipping Order" : "Delete Shipping Order"}
+                  </Button>
+                </div>
               </form>
             </div>
           </TabsContent>
