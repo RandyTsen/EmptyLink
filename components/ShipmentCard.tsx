@@ -60,9 +60,22 @@ export default function ShipmentCard({ shipment }: ShipmentCardProps) {
   const completionPercentage =
     containerCounts.total > 0 ? Math.round((containerCounts.delivered / containerCounts.total) * 100) : 0
 
+  // Generate a gradient color based on completion percentage
+  const getGradientColor = () => {
+    if (completionPercentage >= 75) {
+      return "from-teal-600 to-teal-700"
+    } else if (completionPercentage >= 50) {
+      return "from-cyan-600 to-cyan-700"
+    } else if (completionPercentage >= 25) {
+      return "from-blue-600 to-blue-700"
+    } else {
+      return "from-indigo-600 to-indigo-700"
+    }
+  }
+
   return (
-    <Card className="min-w-[400px] w-[400px] overflow-hidden shadow-md hover:shadow-lg transition-shadow duration-300 h-full">
-      <CardHeader className="bg-slate-800 text-white p-4">
+    <Card className="overflow-hidden shadow-md hover:shadow-lg transition-shadow duration-300 h-full">
+      <CardHeader className={`bg-gradient-to-r ${getGradientColor()} text-white p-4`}>
         <div className="flex justify-between items-start">
           <div>
             <div className="flex items-center gap-2">
@@ -94,8 +107,8 @@ export default function ShipmentCard({ shipment }: ShipmentCardProps) {
               Total: {containerCounts.total} | Pending: {containerCounts.pending} | Completion: {completionPercentage}%
             </div>
           </div>
-          <div className="w-full mt-1 bg-gray-700 rounded-full h-2.5">
-            <div className="bg-green-500 h-2.5 rounded-full" style={{ width: `${completionPercentage}%` }}></div>
+          <div className="w-full mt-1 bg-white/30 rounded-full h-2.5">
+            <div className="bg-white h-2.5 rounded-full" style={{ width: `${completionPercentage}%` }}></div>
           </div>
         </div>
       </CardHeader>

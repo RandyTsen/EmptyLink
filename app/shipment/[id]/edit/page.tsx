@@ -1,11 +1,12 @@
 "use client"
 
+import { Badge } from "@/components/ui/badge"
+
 import { useEffect, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Calendar } from "@/components/ui/calendar"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
@@ -13,7 +14,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { ArrowLeft, CalendarIcon, Save, Ship, Clock, Plus, Trash2, Upload } from "lucide-react"
+import { ArrowLeft, CalendarIcon, Save, Ship, Clock, Plus, Trash2, Upload, Info, Check, X, Package } from "lucide-react"
 import { format } from "date-fns"
 import { cn } from "@/lib/utils"
 import {
@@ -41,6 +42,16 @@ const CONTAINER_TYPES = [
   "40' FR", // 40-foot flat rack
   "20' TK", // 20-foot tank
 ]
+
+// Status colors for better visual distinction
+const STATUS_COLORS = {
+  "gate in": { bg: "bg-emerald-100", text: "text-emerald-800", hover: "hover:bg-emerald-200" },
+  delivered: { bg: "bg-green-100", text: "text-green-800", hover: "hover:bg-green-200" },
+  "in transit": { bg: "bg-blue-100", text: "text-blue-800", hover: "hover:bg-blue-200" },
+  delayed: { bg: "bg-amber-100", text: "text-amber-800", hover: "hover:bg-amber-200" },
+  pending: { bg: "bg-gray-100", text: "text-gray-800", hover: "hover:bg-gray-200" },
+  problem: { bg: "bg-red-100", text: "text-red-800", hover: "hover:bg-red-200" },
+}
 
 export default function EditShipmentPage() {
   const router = useRouter()
@@ -308,28 +319,26 @@ export default function EditShipmentPage() {
   const getStatusBadgeClass = (status) => {
     const statusLower = status.toLowerCase()
 
-    if (statusLower.includes("delivered") || statusLower === "gate in") {
-      return "bg-green-100 text-green-800 hover:bg-green-200"
-    } else if (statusLower.includes("transit")) {
-      return "bg-blue-100 text-blue-800 hover:bg-blue-200"
-    } else if (statusLower.includes("delay") || statusLower.includes("hold")) {
-      return "bg-yellow-100 text-yellow-800 hover:bg-yellow-200"
-    } else if (statusLower.includes("problem") || statusLower.includes("damage")) {
-      return "bg-red-100 text-red-800 hover:bg-red-200"
-    } else {
-      return "bg-gray-100 text-gray-800 hover:bg-gray-200"
+    for (const [key, value] of Object.entries(STATUS_COLORS)) {
+      if (statusLower.includes(key)) {
+        return `${value.bg} ${value.text} ${value.hover}`
+      }
     }
+
+    return `${STATUS_COLORS.pending.bg} ${STATUS_COLORS.pending.text} ${STATUS_COLORS.pending.hover}`
   }
 
   if (loading) {
     return (
-      <div className="container mx-auto p-4">
-        <Button variant="ghost" className="mb-6" onClick={() => router.back()}>
-          <ArrowLeft className="mr-2 h-4 w-4" /> Back
-        </Button>
-        <Skeleton className="h-12 w-3/4 mb-6" />
-        <div className="space-y-6">
-          <Skeleton className="h-64 w-full" />
+      <div className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100">
+        <div className="container mx-auto p-4">
+          <Button variant="ghost" className="mb-6" onClick={() => router.back()}>
+            <ArrowLeft className="mr-2 h-4 w-4" /> Back
+          </Button>
+          <Skeleton className="h-12 w-3/4 mb-6" />
+          <div className="space-y-6">
+            <Skeleton className="h-64 w-full" />
+          </div>
         </div>
       </div>
     )
@@ -337,14 +346,16 @@ export default function EditShipmentPage() {
 
   if (!shipment) {
     return (
-      <div className="container mx-auto p-4">
-        <Button variant="ghost" className="mb-6" onClick={() => router.back()}>
-          <ArrowLeft className="mr-2 h-4 w-4" /> Back
-        </Button>
-        <Alert variant="destructive">
-          <AlertTitle>Error</AlertTitle>
-          <AlertDescription>Shipment not found.</AlertDescription>
-        </Alert>
+      <div className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100">
+        <div className="container mx-auto p-4">
+          <Button variant="ghost" className="mb-6" onClick={() => router.back()}>
+            <ArrowLeft className="mr-2 h-4 w-4" /> Back
+          </Button>
+          <Alert variant="destructive">
+            <AlertTitle>Error</AlertTitle>
+            <AlertDescription>Shipment not found.</AlertDescription>
+          </Alert>
+        </div>
       </div>
     )
   }
@@ -354,77 +365,116 @@ export default function EditShipmentPage() {
     return format(date, "yyyy-MM-dd HH:mm")
   }
 
+  // Calculate completion percentage for styling
+  const containerCounts = {
+    total: shipment.containers.length,
+    completed: shipment.containers.filter(
+      (c) => c.status.toLowerCase() === "delivered" || c.status.toLowerCase() === "gate in",
+    ).length,
+  }
+  const completionPercentage =
+    containerCounts.total > 0 ? Math.round((containerCounts.completed / containerCounts.total) * 100) : 0
+
   return (
-    <div className="container mx-auto p-4 max-w-6xl">
-      <Button variant="ghost" className="mb-6" onClick={() => router.back()}>
-        <ArrowLeft className="mr-2 h-4 w-4" /> Back
-      </Button>
+    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100">
+      <div className="container mx-auto p-4 max-w-6xl">
+        <Button variant="ghost" className="mb-6" onClick={() => router.back()}>
+          <ArrowLeft className="mr-2 h-4 w-4" /> Back
+        </Button>
 
-      <div className="flex items-center gap-3 mb-6">
-        <Ship className="h-8 w-8" />
-        <h1 className="text-3xl font-bold">Edit Shipping Order</h1>
-      </div>
+        <div className="flex items-center gap-3 mb-6">
+          <div className="p-2 bg-blue-100 rounded-full">
+            <Ship className="h-8 w-8 text-blue-600" />
+          </div>
+          <div>
+            <h1 className="text-3xl font-bold text-gray-800">Edit Shipping Order</h1>
+            <p className="text-gray-500">{shipment.shipping_order_id}</p>
+          </div>
+        </div>
 
-      {error && (
-        <Alert variant="destructive" className="mb-6">
-          <AlertTitle>Error</AlertTitle>
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      )}
+        {error && (
+          <Alert variant="destructive" className="mb-6">
+            <AlertTitle>Error</AlertTitle>
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
 
-      {success && (
-        <Alert className="mb-6 bg-green-50 border-green-200 text-green-800">
-          <AlertTitle>Success</AlertTitle>
-          <AlertDescription>{success}</AlertDescription>
-        </Alert>
-      )}
+        {success && (
+          <Alert className="mb-6 bg-green-50 border-green-200">
+            <Check className="h-4 w-4 text-green-600" />
+            <AlertTitle className="text-green-800">Success</AlertTitle>
+            <AlertDescription className="text-green-700">{success}</AlertDescription>
+          </Alert>
+        )}
 
-      <Tabs defaultValue="shipping-order">
-        <TabsList className="mb-6">
-          <TabsTrigger value="shipping-order">Shipping Order Details</TabsTrigger>
-          <TabsTrigger value="containers">Manage Containers</TabsTrigger>
-          <TabsTrigger value="add-containers">Add Containers</TabsTrigger>
-        </TabsList>
+        <Tabs
+          defaultValue="shipping-order"
+          className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden"
+        >
+          <TabsList className="p-0 bg-gray-50 border-b border-gray-200 rounded-none">
+            <TabsTrigger
+              value="shipping-order"
+              className="data-[state=active]:bg-white rounded-none border-r border-gray-200 px-6"
+            >
+              Shipping Order Details
+            </TabsTrigger>
+            <TabsTrigger
+              value="containers"
+              className="data-[state=active]:bg-white rounded-none border-r border-gray-200 px-6"
+            >
+              Manage Containers
+            </TabsTrigger>
+            <TabsTrigger value="add-containers" className="data-[state=active]:bg-white rounded-none px-6">
+              Add Containers
+            </TabsTrigger>
+          </TabsList>
 
-        {/* Shipping Order Details Tab */}
-        <TabsContent value="shipping-order">
-          <Card>
-            <CardHeader>
-              <CardTitle>Shipping Order Information</CardTitle>
-              <CardDescription>Update the basic information for this shipping order.</CardDescription>
-            </CardHeader>
-            <form onSubmit={handleSubmitShippingOrder}>
-              <CardContent className="space-y-4">
+          {/* Shipping Order Details Tab */}
+          <TabsContent value="shipping-order" className="p-6 m-0">
+            <div className="max-w-2xl mx-auto">
+              <h2 className="text-xl font-semibold mb-4 text-gray-800">Shipping Order Information</h2>
+              <p className="text-gray-500 mb-6">Update the basic information for this shipping order.</p>
+
+              <form onSubmit={handleSubmitShippingOrder} className="space-y-6">
                 <div className="space-y-2">
-                  <Label htmlFor="shipping_order_id">Shipping Order ID</Label>
+                  <Label htmlFor="shipping_order_id" className="text-gray-700">
+                    Shipping Order ID
+                  </Label>
                   <Input
                     id="shipping_order_id"
                     value={shippingOrderId}
                     onChange={(e) => setShippingOrderId(e.target.value)}
                     placeholder="e.g., SO-12345"
+                    className="border-gray-300 focus:border-blue-400 focus:ring-blue-400"
                     required
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="vessel">Vessel</Label>
+                  <Label htmlFor="vessel" className="text-gray-700">
+                    Vessel
+                  </Label>
                   <Input
                     id="vessel"
                     value={vessel}
                     onChange={(e) => setVessel(e.target.value)}
                     placeholder="e.g., MAERSK SELETAR"
+                    className="border-gray-300 focus:border-blue-400 focus:ring-blue-400"
                     required
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Estimated Time of Arrival (ETA)</Label>
+                  <Label className="text-gray-700">Estimated Time of Arrival (ETA)</Label>
                   <div className="flex flex-col sm:flex-row gap-2">
                     <Popover>
                       <PopoverTrigger asChild>
                         <Button
                           variant={"outline"}
-                          className={cn("w-full justify-start text-left font-normal", !date && "text-muted-foreground")}
+                          className={cn(
+                            "w-full justify-start text-left font-normal border-gray-300",
+                            !date && "text-muted-foreground",
+                          )}
                         >
                           <CalendarIcon className="mr-2 h-4 w-4" />
                           {date ? format(date, "PPP") : <span>Pick a date</span>}
@@ -441,121 +491,201 @@ export default function EditShipmentPage() {
                     </div>
                   </div>
                 </div>
-              </CardContent>
-              <CardFooter>
-                <Button type="submit" className="w-full" disabled={isSubmitting}>
+
+                <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700" disabled={isSubmitting}>
                   <Save className="mr-2 h-4 w-4" />
                   {isSubmitting ? "Saving..." : "Save Shipping Order Details"}
                 </Button>
-              </CardFooter>
-            </form>
-          </Card>
-        </TabsContent>
+              </form>
+            </div>
+          </TabsContent>
 
-        {/* Manage Containers Tab */}
-        <TabsContent value="containers">
-          <Card>
-            <CardHeader>
-              <CardTitle>Manage Containers</CardTitle>
-              <CardDescription>
-                {shipment.containers.length} container{shipment.containers.length !== 1 ? "s" : ""} in this shipment
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {shipment.containers.length === 0 ? (
-                <div className="text-center py-8 text-gray-500">
-                  No containers found for this shipment. Add containers in the "Add Containers" tab.
+          {/* Manage Containers Tab */}
+          <TabsContent value="containers" className="p-6 m-0">
+            <div className="mb-4 flex justify-between items-center">
+              <div>
+                <h2 className="text-xl font-semibold text-gray-800">Manage Containers</h2>
+                <p className="text-gray-500">
+                  {shipment.containers.length} container{shipment.containers.length !== 1 ? "s" : ""} in this shipment
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="text-sm text-gray-500">Completion:</div>
+                <div className="w-32 bg-gray-200 rounded-full h-2.5">
+                  <div
+                    className={cn(
+                      "h-2.5 rounded-full",
+                      completionPercentage === 100 ? "bg-emerald-500" : "bg-blue-500",
+                    )}
+                    style={{ width: `${completionPercentage}%` }}
+                  ></div>
                 </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Container No</TableHead>
-                        <TableHead>Container Type</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Gate In Time</TableHead>
-                        <TableHead>Truck No</TableHead>
-                        <TableHead className="text-right">Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {shipment.containers.map((container) => (
-                        <TableRow key={container.id}>
-                          <TableCell className="font-medium">{container.container_no}</TableCell>
-                          <TableCell>{container.container_type || "Not specified"}</TableCell>
-                          <TableCell>
-                            <div
-                              className="px-2 py-1 rounded text-sm inline-block"
-                              style={{
-                                backgroundColor: getStatusBadgeClass(container.status).split(" ")[0],
-                                color: getStatusBadgeClass(container.status).split(" ")[1],
-                              }}
+                <div className="text-sm font-medium">{completionPercentage}%</div>
+              </div>
+            </div>
+
+            <Alert className="mb-6 bg-blue-50 border-blue-200">
+              <Info className="h-4 w-4 text-blue-600" />
+              <AlertDescription className="text-blue-700">
+                Container statuses are automatically updated every 10 minutes by checking the port portal. Once a
+                container is marked as "Gate in" with a truck number, it's considered complete.
+              </AlertDescription>
+            </Alert>
+
+            {shipment.containers.length === 0 ? (
+              <div className="text-center py-8 text-gray-500 bg-gray-50 rounded-lg border border-dashed border-gray-300">
+                <Package className="h-12 w-12 text-gray-400 mx-auto mb-2" />
+                <p className="text-lg font-medium">No containers found for this shipment</p>
+                <p className="mt-1">Add containers in the "Add Containers" tab</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto border border-gray-200 rounded-lg">
+                <Table>
+                  <TableHeader className="bg-gray-50">
+                    <TableRow>
+                      <TableHead className="font-semibold">Container No</TableHead>
+                      <TableHead className="font-semibold">Container Type</TableHead>
+                      <TableHead className="font-semibold">Status</TableHead>
+                      <TableHead className="font-semibold">Gate In Time</TableHead>
+                      <TableHead className="font-semibold">Truck No</TableHead>
+                      <TableHead className="text-right font-semibold">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {shipment.containers.map((container) => (
+                      <TableRow key={container.id} className="hover:bg-gray-50">
+                        <TableCell className="font-medium">{container.container_no}</TableCell>
+                        <TableCell>{container.container_type || "Not specified"}</TableCell>
+                        <TableCell>
+                          <Badge className={getStatusBadgeClass(container.status)}>{container.status}</Badge>
+                        </TableCell>
+                        <TableCell>{container.gate_in_time ? formatDate(container.gate_in_time) : "N/A"}</TableCell>
+                        <TableCell>{container.truck_no || "N/A"}</TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex justify-end gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleEditContainer(container)}
+                              disabled={container.status !== "pending"}
+                              className="border-gray-300 hover:bg-gray-50"
+                              title={
+                                container.status !== "pending"
+                                  ? "Only pending containers can be edited"
+                                  : "Edit container"
+                              }
                             >
-                              {container.status}
-                            </div>
-                          </TableCell>
-                          <TableCell>{container.gate_in_time ? formatDate(container.gate_in_time) : "N/A"}</TableCell>
-                          <TableCell>{container.truck_no || "N/A"}</TableCell>
-                          <TableCell className="text-right">
-                            <div className="flex justify-end gap-2">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleEditContainer(container)}
-                                disabled={container.status !== "pending"}
-                                title={
-                                  container.status !== "pending"
-                                    ? "Only pending containers can be edited"
-                                    : "Edit container"
-                                }
-                              >
-                                Edit
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="text-red-500 hover:text-red-700"
-                                onClick={() => handleDeleteContainer(container.id)}
-                                disabled={isSubmitting || container.status !== "pending"}
-                                title={
-                                  container.status !== "pending"
-                                    ? "Only pending containers can be deleted"
-                                    : "Delete container"
-                                }
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              )}
+                              Edit
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                              onClick={() => handleDeleteContainer(container.id)}
+                              disabled={isSubmitting || container.status !== "pending"}
+                              title={
+                                container.status !== "pending"
+                                  ? "Only pending containers can be deleted"
+                                  : "Delete container"
+                              }
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
 
-              {/* Edit Container Modal */}
-              {editingContainer && (
-                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-                  <div className="bg-white p-6 rounded-lg shadow-lg max-w-md w-full">
-                    <h3 className="text-lg font-bold mb-4">Edit Container</h3>
-                    <div className="space-y-4">
-                      <div>
-                        <Label htmlFor="edit-container-no">Container Number</Label>
+            {/* Edit Container Modal */}
+            {editingContainer && (
+              <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+                <div className="bg-white p-6 rounded-lg shadow-lg max-w-md w-full">
+                  <h3 className="text-lg font-bold mb-4 text-gray-800">Edit Container</h3>
+                  <div className="space-y-4">
+                    <div>
+                      <Label htmlFor="edit-container-no" className="text-gray-700">
+                        Container Number
+                      </Label>
+                      <Input
+                        id="edit-container-no"
+                        value={editingContainer.container_no}
+                        onChange={(e) => setEditingContainer({ ...editingContainer, container_no: e.target.value })}
+                        className="border-gray-300 focus:border-blue-400 focus:ring-blue-400"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="edit-container-type" className="text-gray-700">
+                        Container Type
+                      </Label>
+                      <Select
+                        value={editingContainer.container_type}
+                        onValueChange={(value) => setEditingContainer({ ...editingContainer, container_type: value })}
+                      >
+                        <SelectTrigger id="edit-container-type" className="border-gray-300">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {CONTAINER_TYPES.map((type) => (
+                            <SelectItem key={type} value={type}>
+                              {type}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="flex justify-end gap-2 mt-6">
+                      <Button variant="outline" onClick={() => setEditingContainer(null)} className="border-gray-300">
+                        Cancel
+                      </Button>
+                      <Button
+                        onClick={handleUpdateContainer}
+                        disabled={isSubmitting}
+                        className="bg-blue-600 hover:bg-blue-700"
+                      >
+                        {isSubmitting ? "Saving..." : "Save Changes"}
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </TabsContent>
+
+          {/* Add Containers Tab */}
+          <TabsContent value="add-containers" className="p-6 m-0">
+            <h2 className="text-xl font-semibold mb-4 text-gray-800">Add New Containers</h2>
+            <p className="text-gray-500 mb-6">Add containers to this shipping order</p>
+
+            <form id="add-containers-form" onSubmit={handleAddContainers}>
+              <Tabs defaultValue="individual" className="mt-2">
+                <TabsList className="grid w-full grid-cols-2 bg-gray-100">
+                  <TabsTrigger value="individual" className="data-[state=active]:bg-white">
+                    Individual Entry
+                  </TabsTrigger>
+                  <TabsTrigger value="bulk" className="data-[state=active]:bg-white">
+                    Bulk Entry
+                  </TabsTrigger>
+                </TabsList>
+                <input type="hidden" name="inputMethod" value="individual" />
+                <TabsContent value="individual">
+                  <div className="space-y-4 mt-4">
+                    {newContainers.map((container, index) => (
+                      <div key={index} className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg">
                         <Input
-                          id="edit-container-no"
-                          value={editingContainer.container_no}
-                          onChange={(e) => setEditingContainer({ ...editingContainer, container_no: e.target.value })}
+                          placeholder="Container Number"
+                          value={container.container_no}
+                          onChange={(e) => handleContainerChange(index, "container_no", e.target.value)}
+                          className="flex-1 border-gray-300 focus:border-blue-400 focus:ring-blue-400"
                         />
-                      </div>
-                      <div>
-                        <Label htmlFor="edit-container-type">Container Type</Label>
                         <Select
-                          value={editingContainer.container_type}
-                          onValueChange={(value) => setEditingContainer({ ...editingContainer, container_type: value })}
+                          value={container.container_type}
+                          onValueChange={(value) => handleContainerChange(index, "container_type", value)}
                         >
-                          <SelectTrigger id="edit-container-type">
+                          <SelectTrigger className="w-[140px] border-gray-300">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
@@ -566,136 +696,88 @@ export default function EditShipmentPage() {
                             ))}
                           </SelectContent>
                         </Select>
-                      </div>
-                      <div className="flex justify-end gap-2 mt-6">
-                        <Button variant="outline" onClick={() => setEditingContainer(null)}>
-                          Cancel
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleRemoveContainer(index)}
+                          disabled={newContainers.length === 1}
+                          className="text-gray-500 hover:text-red-500 hover:bg-red-50"
+                        >
+                          <X className="h-4 w-4" />
                         </Button>
-                        <Button onClick={handleUpdateContainer} disabled={isSubmitting}>
-                          {isSubmitting ? "Saving..." : "Save Changes"}
-                        </Button>
                       </div>
+                    ))}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={handleAddContainer}
+                      className="w-full border-dashed border-gray-300 hover:bg-gray-50"
+                    >
+                      <Plus className="mr-2 h-4 w-4" /> Add Container
+                    </Button>
+                  </div>
+                </TabsContent>
+                <TabsContent value="bulk">
+                  <div className="space-y-4 mt-4">
+                    <div>
+                      <Label htmlFor="bulk-containers" className="text-gray-700">
+                        Enter Container Numbers (one per line)
+                      </Label>
+                      <Textarea
+                        id="bulk-containers"
+                        placeholder="CONT-001&#10;CONT-002&#10;CONT-003"
+                        className="min-h-[200px] font-mono border-gray-300 focus:border-blue-400 focus:ring-blue-400"
+                        value={bulkContainers}
+                        onChange={handleBulkContainersChange}
+                      />
+                      <p className="text-xs text-gray-500 mt-2">
+                        Format: "PCIU1234535 20 GP" (container number followed by container type). If type is omitted,
+                        20' GP will be used as default.
+                      </p>
+                    </div>
+                    <div className="text-center relative">
+                      <div className="absolute inset-0 flex items-center">
+                        <span className="w-full border-t border-gray-300" />
+                      </div>
+                      <span className="relative bg-white px-2 text-xs text-gray-500">OR</span>
+                    </div>
+                    <div>
+                      <Label htmlFor="excel-upload" className="text-gray-700">
+                        Upload Excel File
+                      </Label>
+                      <div className="mt-2">
+                        <Input
+                          id="excel-upload"
+                          type="file"
+                          accept=".xlsx,.xls"
+                          onChange={handleFileUpload}
+                          className="hidden"
+                        />
+                        <Label
+                          htmlFor="excel-upload"
+                          className="flex items-center justify-center gap-2 border-2 border-dashed border-gray-300 rounded-md p-6 cursor-pointer hover:bg-gray-50"
+                        >
+                          <Upload className="h-6 w-6 text-gray-400" />
+                          <span className="text-gray-600">Click to upload Excel file</span>
+                        </Label>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-2">
+                        Excel file should have columns named &quot;container_no&quot; and &quot;container_type&quot;
+                      </p>
                     </div>
                   </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Add Containers Tab */}
-        <TabsContent value="add-containers">
-          <Card>
-            <CardHeader>
-              <CardTitle>Add New Containers</CardTitle>
-              <CardDescription>Add containers to this shipping order</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <form id="add-containers-form" onSubmit={handleAddContainers}>
-                <Tabs defaultValue="individual" className="mt-2">
-                  <TabsList className="grid w-full grid-cols-2">
-                    <TabsTrigger value="individual">Individual Entry</TabsTrigger>
-                    <TabsTrigger value="bulk">Bulk Entry</TabsTrigger>
-                  </TabsList>
-                  <input type="hidden" name="inputMethod" value="individual" />
-                  <TabsContent value="individual">
-                    <div className="space-y-4 mt-4">
-                      {newContainers.map((container, index) => (
-                        <div key={index} className="flex items-center gap-2">
-                          <Input
-                            placeholder="Container Number"
-                            value={container.container_no}
-                            onChange={(e) => handleContainerChange(index, "container_no", e.target.value)}
-                            className="flex-1"
-                          />
-                          <Select
-                            value={container.container_type}
-                            onValueChange={(value) => handleContainerChange(index, "container_type", value)}
-                          >
-                            <SelectTrigger className="w-[140px]">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {CONTAINER_TYPES.map((type) => (
-                                <SelectItem key={type} value={type}>
-                                  {type}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleRemoveContainer(index)}
-                            disabled={newContainers.length === 1}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      ))}
-                      <Button type="button" variant="outline" onClick={handleAddContainer} className="w-full">
-                        <Plus className="mr-2 h-4 w-4" /> Add Container
-                      </Button>
-                    </div>
-                  </TabsContent>
-                  <TabsContent value="bulk">
-                    <div className="space-y-4 mt-4">
-                      <div>
-                        <Label htmlFor="bulk-containers">Enter Container Numbers (one per line)</Label>
-                        <Textarea
-                          id="bulk-containers"
-                          placeholder="CONT-001&#10;CONT-002&#10;CONT-003"
-                          className="min-h-[200px] font-mono"
-                          value={bulkContainers}
-                          onChange={handleBulkContainersChange}
-                        />
-                        <p className="text-xs text-gray-500 mt-2">
-                          Format: "PCIU1234535 20 GP" (container number followed by container type). If type is omitted,
-                          20' GP will be used as default.
-                        </p>
-                      </div>
-                      <div className="text-center relative">
-                        <div className="absolute inset-0 flex items-center">
-                          <span className="w-full border-t" />
-                        </div>
-                        <span className="relative bg-background px-2 text-xs text-muted-foreground">OR</span>
-                      </div>
-                      <div>
-                        <Label htmlFor="excel-upload">Upload Excel File</Label>
-                        <div className="mt-2">
-                          <Input
-                            id="excel-upload"
-                            type="file"
-                            accept=".xlsx,.xls"
-                            onChange={handleFileUpload}
-                            className="hidden"
-                          />
-                          <Label
-                            htmlFor="excel-upload"
-                            className="flex items-center justify-center gap-2 border-2 border-dashed rounded-md p-6 cursor-pointer hover:bg-gray-50"
-                          >
-                            <Upload className="h-6 w-6 text-gray-400" />
-                            <span>Click to upload Excel file</span>
-                          </Label>
-                        </div>
-                        <p className="text-xs text-gray-500 mt-2">
-                          Excel file should have columns named &quot;container_no&quot; and &quot;container_type&quot;
-                        </p>
-                      </div>
-                    </div>
-                  </TabsContent>
-                </Tabs>
-                <div className="mt-6">
-                  <Button type="submit" className="w-full" disabled={isSubmitting}>
-                    {isSubmitting ? "Adding..." : "Add Containers"}
-                  </Button>
-                </div>
-              </form>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+                </TabsContent>
+              </Tabs>
+              <div className="mt-6">
+                <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700" disabled={isSubmitting}>
+                  {isSubmitting ? "Adding..." : "Add Containers"}
+                </Button>
+              </div>
+            </form>
+          </TabsContent>
+        </Tabs>
+      </div>
     </div>
   )
 }

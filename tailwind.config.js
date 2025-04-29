@@ -9,6 +9,27 @@ module.exports = {
     "app/**/*.{ts,tsx}",
     "components/**/*.{ts,tsx}",
   ],
+  safelist: [
+    // Add dynamic color classes that might be used with string interpolation
+    "from-emerald-600",
+    "to-emerald-500",
+    "from-sky-600",
+    "to-sky-500",
+    "from-amber-600",
+    "to-amber-500",
+    "bg-emerald-50",
+    "bg-sky-50",
+    "bg-amber-50",
+    "border-emerald-500",
+    "border-sky-500",
+    "border-amber-500",
+    "text-emerald-600",
+    "text-sky-600",
+    "text-amber-600",
+    "bg-emerald-500",
+    "bg-sky-500",
+    "bg-amber-500",
+  ],
   theme: {
     extend: {
       colors: {
