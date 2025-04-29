@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { RefreshCw, Search, Filter, Plus, BarChart, Ship } from "lucide-react"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Switch } from "@/components/ui/switch"
-import ShipmentCard from "@/components/ShipmentCard"
+import ShipmentList from "@/components/ShipmentList"
 
 // Auto-refresh interval in milliseconds (10 minutes)
 const AUTO_REFRESH_INTERVAL = 10 * 60 * 1000
@@ -95,13 +95,19 @@ export default function Home() {
   }
 
   const renderShipmentSkeletons = () => {
-    return Array(4)
-      .fill(0)
-      .map((_, index) => (
-        <div key={index} className="w-full">
-          <Skeleton className="h-[500px] w-full rounded-lg" />
+    return (
+      <div className="relative">
+        <div className="shipments-wrapper">
+          {Array(4)
+            .fill(0)
+            .map((_, index) => (
+              <div key={index} className="shipment-card">
+                <Skeleton className="h-[500px] w-full rounded-lg" />
+              </div>
+            ))}
         </div>
-      ))
+      </div>
+    )
   }
 
   if (loading && !shipments.length) {
@@ -111,9 +117,7 @@ export default function Home() {
           <Ship className="h-8 w-8" />
           <h1 className="text-3xl font-bold">Container Tracker</h1>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {renderShipmentSkeletons()}
-        </div>
+        {renderShipmentSkeletons()}
       </div>
     )
   }
@@ -232,11 +236,7 @@ export default function Home() {
               )}
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {filteredShipments.map((shipment) => (
-                <ShipmentCard key={shipment.id} shipment={shipment} onArchive={handleArchive} />
-              ))}
-            </div>
+            <ShipmentList shipments={filteredShipments} onArchive={handleArchive} className="grid-cols-3" />
           )}
         </>
       )}

@@ -3,13 +3,12 @@
 import { useState } from "react"
 import { formatDate } from "@/utils/formatters"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Calendar, Package, Ship, Edit, CheckCircle, AlertTriangle } from "lucide-react"
 import Link from "next/link"
 import { updateShipmentArchiveStatus } from "@/services/dbService"
 import { differenceInDays } from "date-fns"
+import { cn } from "@/lib/utils"
 
 interface Container {
   id: string
@@ -33,9 +32,10 @@ interface Shipment {
 interface ShipmentCardProps {
   shipment: Shipment
   onArchive?: (shipmentId: string) => void
+  className?: string
 }
 
-export default function ShipmentCard({ shipment, onArchive }: ShipmentCardProps) {
+export default function ShipmentCard({ shipment, onArchive, className }: ShipmentCardProps) {
   const [isArchiving, setIsArchiving] = useState(false)
 
   const getStatusBadgeClass = (status: string): string => {
@@ -126,7 +126,7 @@ export default function ShipmentCard({ shipment, onArchive }: ShipmentCardProps)
   }
 
   return (
-    <Card className="overflow-hidden shadow-md hover:shadow-lg transition-shadow duration-300 h-full">
+    <Card className={cn("shadow-md hover:shadow-lg transition-shadow duration-300 h-full", className)}>
       <CardHeader className={`bg-gradient-to-r ${getGradientColor()} text-white p-4`}>
         <div className="flex justify-between items-start">
           <div>
@@ -187,33 +187,33 @@ export default function ShipmentCard({ shipment, onArchive }: ShipmentCardProps)
         {containerCounts.total === 0 ? (
           <div className="p-4 text-center text-gray-500 italic">No containers found for this shipment.</div>
         ) : (
-          <div className="overflow-x-hidden">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Container</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Truck Time</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
+          <div className="w-full">
+            <table className="w-full border-collapse table-fixed">
+              <thead>
+                <tr className="bg-gray-50">
+                  <th className="border-b px-2 py-2 text-left text-xs font-semibold">Container</th>
+                  <th className="border-b px-2 py-2 text-left text-xs font-semibold">Type</th>
+                  <th className="border-b px-2 py-2 text-left text-xs font-semibold">Truck</th>
+                  <th className="border-b px-2 py-2 text-left text-xs font-semibold">Time</th>
+                  <th className="border-b px-2 py-2 text-center text-xs font-semibold">Status</th>
+                </tr>
+              </thead>
+              <tbody>
                 {shipment.containers.map((container) => (
-                  <TableRow key={container.id}>
-                    <TableCell className="font-medium">{container.container_no}</TableCell>
-                    <TableCell>{container.container_type || "N/A"}</TableCell>
-                    <TableCell>
-                      {container.status ? (
-                        <Badge className={getStatusBadgeClass(container.status)}>{container.status}</Badge>
-                      ) : (
-                        "-"
-                      )}
-                    </TableCell>
-                    <TableCell>{container.gate_in_time ? formatDate(container.gate_in_time) : "-"}</TableCell>
-                  </TableRow>
+                  <tr key={container.id} className="hover:bg-gray-50">
+                    <td className="border-b px-2 py-2 text-xs font-medium">{container.container_no}</td>
+                    <td className="border-b px-2 py-2 text-xs">{container.container_type || "N/A"}</td>
+                    <td className="border-b px-2 py-2 text-xs">{container.truck_no || "N/A"}</td>
+                    <td className="border-b px-2 py-2 text-xs">
+                      {container.gate_in_time ? formatDate(container.gate_in_time) : "-"}
+                    </td>
+                    <td className="border-b px-2 py-2 text-center">
+                      {container.status.toLowerCase() === "pending" ? "🕓" : "✅"}
+                    </td>
+                  </tr>
                 ))}
-              </TableBody>
-            </Table>
+              </tbody>
+            </table>
           </div>
         )}
       </CardContent>

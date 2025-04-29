@@ -91,3 +91,92 @@ body {
     --sidebar-accent-foreground: 0 0% 98%;
   }
 }
+
+/* Shipment carousel styles */
+.shipments-wrapper {
+  display: flex;
+  gap: 1rem;
+  overflow-x: auto;
+  padding: 0.5rem 2.5rem;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  scroll-padding: 1rem;
+  cursor: grab;
+}
+
+.shipments-wrapper:active {
+  cursor: grabbing;
+}
+
+/* Update the shipment-card class to show 3 cards at a time instead of 4 */
+.shipment-card {
+  flex: none;
+  width: calc(33.333% - 1rem);
+  scroll-snap-align: start;
+  min-width: 300px;
+  scroll-margin-left: 1rem;
+}
+
+/* Keep the responsive breakpoints, but adjust for 3 cards */
+@media (max-width: 1280px) {
+  .shipment-card {
+    width: calc(33.333% - 1rem);
+  }
+}
+
+@media (max-width: 1024px) {
+  .shipment-card {
+    width: calc(50% - 1rem);
+  }
+}
+
+@media (max-width: 640px) {
+  .shipment-card {
+    width: calc(100% - 1rem);
+  }
+}
+
+/* Ensure table cells don't wrap and show full content */
+.shipment-card table {
+  table-layout: fixed;
+  width: 100%;
+}
+
+/* Adjust column widths for better readability */
+.shipment-card th:nth-child(1),
+.shipment-card td:nth-child(1) {
+  width: 30%;
+}
+
+.shipment-card th:nth-child(2),
+.shipment-card td:nth-child(2) {
+  width: 15%;
+}
+
+.shipment-card th:nth-child(3),
+.shipment-card td:nth-child(3) {
+  width: 15%;
+}
+
+.shipment-card th:nth-child(4),
+.shipment-card td:nth-child(4) {
+  width: 30%;
+}
+
+.shipment-card th:nth-child(5),
+.shipment-card td:nth-child(5) {
+  width: 10%;
+}
+
+/* Ensure text is fully visible */
+.shipment-card th,
+.shipment-card td {
+  overflow: visible;
+  white-space: normal;
+  word-break: break-word;
+}
+
+/* Make sure status icons are centered properly */
+.shipment-card td:last-child {
+  text-align: center;
+}

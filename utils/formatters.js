@@ -14,13 +14,14 @@ export function formatDate(dateString) {
       return "Invalid date"
     }
 
+    // Use a more compact date format to ensure it fits in the table cell
     return new Intl.DateTimeFormat("en-US", {
       year: "numeric",
-      month: "short",
-      day: "numeric",
+      month: "2-digit",
+      day: "2-digit",
       hour: "2-digit",
       minute: "2-digit",
-      hour12: true,
+      hour12: false,
     }).format(date)
   } catch (error) {
     console.error("Error formatting date:", error)

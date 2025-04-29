@@ -179,7 +179,7 @@ export default function ShipmentDetailPage() {
               <div className="overflow-x-auto">
                 <div className="flex gap-4 pb-2">
                   {shipment.containers.map((container) => (
-                    <div key={container.id} className="min-w-[250px] border rounded-md p-4 bg-white shadow-sm">
+                    <div key={container.id} className="min-w-[300px] border rounded-md p-4 bg-white shadow-sm">
                       <div className="font-medium text-lg mb-3">{container.container_no}</div>
                       <div className="space-y-3">
                         <div className="flex justify-between">
@@ -188,10 +188,10 @@ export default function ShipmentDetailPage() {
                         </div>
                         <div className="flex justify-between items-center">
                           <span className="text-gray-500">Status:</span>
-                          <Badge className={getStatusBadgeClass(container.status)}>{container.status}</Badge>
+                          <span className="text-xl">{container.status.toLowerCase() === "pending" ? "🕓" : "✅"}</span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-gray-500">Gate In:</span>
+                          <span className="text-gray-500">Time:</span>
                           <span>{container.gate_in_time ? formatDate(container.gate_in_time) : "N/A"}</span>
                         </div>
                         <div className="flex justify-between">
@@ -199,7 +199,7 @@ export default function ShipmentDetailPage() {
                           <span className="flex items-center">
                             {container.truck_no ? (
                               <>
-                                <Truck className="mr-1 h-3 w-3" />
+                                <Truck className="mr-1 h-3 w-3 flex-shrink-0" />
                                 {container.truck_no}
                               </>
                             ) : (

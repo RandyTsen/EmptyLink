@@ -7,8 +7,8 @@ import { Button } from "@/components/ui/button"
 import { ArrowLeft, FileText, FileIcon as FilePdf } from "lucide-react"
 import { getShipmentById } from "@/services/dbService"
 import { format } from "date-fns"
-import { jsPDF } from "jspdf"
-import "jspdf-autotable"
+import jsPDF from "jspdf"
+import autoTable from "jspdf-autotable"
 
 export default function ShipmentAnalyticsClient({ params }) {
   const router = useRouter()
@@ -68,23 +68,23 @@ export default function ShipmentAnalyticsClient({ params }) {
       // Add shipment details
       doc.setFontSize(12)
       doc.text(`Vessel: ${shipment.vessel || "N/A"}`, 14, 32)
-      doc.text(`ETA: ${shipment.eta ? format(new Date(shipment.eta), "MMM dd, yyyy") : "N/A"}`, 14, 38)
+      doc.text(`ETA: ${shipment.eta ? format(new Date(shipment.eta), "MM/dd/yyyy") : "N/A"}`, 14, 38)
       doc.text(`Status: ${shipment.status}`, 14, 44)
-      doc.text(`Generated: ${format(new Date(), "MMM dd, yyyy HH:mm")}`, 14, 50)
+      doc.text(`Generated: ${format(new Date(), "MM/dd/yyyy HH:mm")}`, 14, 50)
 
       // Prepare container data for the table
       const tableData = shipment.containers.map((container) => [
         container.container_no,
         container.container_type || "N/A",
         container.status,
-        container.gate_in_time ? format(new Date(container.gate_in_time), "MMM dd, yyyy HH:mm") : "N/A",
+        container.gate_in_time ? format(new Date(container.gate_in_time), "MM/dd/yyyy HH:mm") : "N/A",
         container.truck_no || "N/A",
       ])
 
-      // Add table
-      doc.autoTable({
+      // Add table using autoTable
+      autoTable(doc, {
         startY: 60,
-        head: [["Container No", "Type", "Status", "Gate-In Time", "Truck No"]],
+        head: [["Container ID", "Type", "Status", "Gate-In Time", "Truck No"]],
         body: tableData,
         theme: "grid",
         headStyles: {
@@ -178,7 +178,7 @@ export default function ShipmentAnalyticsClient({ params }) {
           <CardTitle>Shipment: {shipment.shipping_order_id}</CardTitle>
           <CardDescription>
             Vessel: {shipment.vessel || "N/A"} | ETA:{" "}
-            {shipment.eta ? format(new Date(shipment.eta), "MMM dd, yyyy") : "N/A"} | Status: {shipment.status}
+            {shipment.eta ? format(new Date(shipment.eta), "MM/dd/yyyy") : "N/A"} | Status: {shipment.status}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -224,11 +224,11 @@ export default function ShipmentAnalyticsClient({ params }) {
             <table className="w-full border-collapse">
               <thead>
                 <tr className="bg-gray-50">
-                  <th className="border px-4 py-2 text-left">Container No</th>
+                  <th className="border px-4 py-2 text-left">Container ID</th>
                   <th className="border px-4 py-2 text-left">Type</th>
-                  <th className="border px-4 py-2 text-left">Status</th>
-                  <th className="border px-4 py-2 text-left">Gate-In Time</th>
                   <th className="border px-4 py-2 text-left">Truck No</th>
+                  <th className="border px-4 py-2 text-left">Time</th>
+                  <th className="border px-4 py-2 text-center">Status</th>
                 </tr>
               </thead>
               <tbody>
@@ -243,26 +243,13 @@ export default function ShipmentAnalyticsClient({ params }) {
                     <tr key={container.id} className="hover:bg-gray-50">
                       <td className="border px-4 py-2">{container.container_no}</td>
                       <td className="border px-4 py-2">{container.container_type || "N/A"}</td>
-                      <td className="border px-4 py-2">
-                        <span
-                          className={`px-2 py-1 rounded-full text-xs font-medium ${
-                            container.status.toLowerCase() === "delivered" ||
-                            container.status.toLowerCase() === "gate in"
-                              ? "bg-green-100 text-green-800"
-                              : container.status.toLowerCase() === "in transit"
-                                ? "bg-blue-100 text-blue-800"
-                                : "bg-amber-100 text-amber-800"
-                          }`}
-                        >
-                          {container.status}
-                        </span>
-                      </td>
-                      <td className="border px-4 py-2">
-                        {container.gate_in_time
-                          ? format(new Date(container.gate_in_time), "MMM dd, yyyy HH:mm")
-                          : "N/A"}
-                      </td>
                       <td className="border px-4 py-2">{container.truck_no || "N/A"}</td>
+                      <td className="border px-4 py-2">
+                        {container.gate_in_time ? format(new Date(container.gate_in_time), "MM/dd/yyyy HH:mm") : "N/A"}
+                      </td>
+                      <td className="border px-4 py-2 text-center text-xl">
+                        {container.status.toLowerCase() === "pending" ? "🕓" : "✅"}
+                      </td>
                     </tr>
                   ))
                 )}
