@@ -4,15 +4,13 @@ import { useRef } from "react"
 import ShipmentCard from "./ShipmentCard"
 import { ChevronLeft, ChevronRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { cn } from "@/lib/utils"
 
 interface ShipmentListProps {
   shipments: any[]
   onArchive: (shipmentId: string) => void
-  className?: string
 }
 
-export default function ShipmentList({ shipments, onArchive, className }: ShipmentListProps) {
+export default function ShipmentList({ shipments, onArchive }: ShipmentListProps) {
   const ref = useRef<HTMLDivElement>(null)
 
   function scroll(offset: number) {
@@ -40,9 +38,14 @@ export default function ShipmentList({ shipments, onArchive, className }: Shipme
         <span className="sr-only">Scroll left</span>
       </Button>
 
-      <div ref={ref} className={cn("shipments-wrapper", className || "grid-cols-3")}>
+      <div
+        ref={ref}
+        className="flex space-x-6 overflow-x-auto snap-x snap-mandatory px-2 py-4"
+      >
         {shipments.map((shipment) => (
-          <ShipmentCard key={shipment.id} shipment={shipment} onArchive={onArchive} className="shipment-card" />
+          <div key={shipment.id} className="flex-shrink-0 min-w-[320px] snap-start">
+            <ShipmentCard shipment={shipment} onArchive={onArchive} />
+          </div>
         ))}
       </div>
 
